@@ -1,7 +1,12 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'export',
+  basePath: '/SoccerTracker',
+  assetPrefix: '/SoccerTracker/',
+  images: {
+    unoptimized: true, // Required for static export image handling
+  },
 };
 
 export default nextConfig;
