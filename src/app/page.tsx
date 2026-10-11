@@ -22,8 +22,39 @@ import { ExportModal } from '../components/ExportModal';
 import { SubModal } from '../components/SubModal';
 import { QuickPlayerModal } from '../components/QuickPlayerModal';
 
+/**
+ * Smart Schedule Auto-Population (2026 Season):
+ * - October 11: Warriors
+ * - October 17: Mukilteo
+ * - October 31: Surf
+ * - November 1: Dragons
+ * - November 7: Pumas
+ * - November 8: RMG
+ * - November 15: America
+ * - All other dates: 'Away' (fully editable by user)
+ */
+export function getScheduledOpponent(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1; // 1-12
+  const day = date.getDate();
+
+  if (year === 2026) {
+    if (month === 10 && day === 11) return 'Warriors';
+    if (month === 10 && day === 17) return 'Mukilteo';
+    if (month === 10 && day === 31) return 'Surf';
+    if (month === 11 && day === 1) return 'Dragons';
+    if (month === 11 && day === 7) return 'Pumas';
+    if (month === 11 && day === 8) return 'RMG';
+    if (month === 11 && day === 15) return 'America';
+  }
+
+  return 'Away';
+}
+
 function createDefaultMatch(): Match {
   const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `match_${Date.now()}`;
+  const opponentName = getScheduledOpponent(new Date());
+
   return {
     id,
     createdAt: new Date().toISOString(),
@@ -37,8 +68,8 @@ function createDefaultMatch(): Match {
     },
     awayTeam: {
       id: 'away',
-      name: 'Legend FC',
-      shortName: 'LEG',
+      name: opponentName,
+      shortName: opponentName.slice(0, 3).toUpperCase(),
       color: '#f43f5e',
       score: 0,
     },
@@ -59,7 +90,7 @@ export default function SoccerTrackerApp() {
 
   // Pitch management toggles
   const [swappedSides, setSwappedSides] = useState(false);
-  const [tagPlayerMode, setTagPlayerMode] = useState(true);
+  const [tagPlayerMode, setTagPlayerMode] = useState(false);
 
   // Modals state
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -95,8 +126,10 @@ export default function SoccerTrackerApp() {
             savedMatch.homeTeam.name = 'Rayados NW';
             needsUpdate = true;
           }
-          if (savedMatch.awayTeam.name === 'Away United') {
-            savedMatch.awayTeam.name = 'Legend FC';
+          if (savedMatch.awayTeam.name === 'Away United' || savedMatch.awayTeam.name === 'Legend FC') {
+            const scheduled = getScheduledOpponent(new Date());
+            savedMatch.awayTeam.name = scheduled;
+            savedMatch.awayTeam.shortName = scheduled.slice(0, 3).toUpperCase();
             needsUpdate = true;
           }
           if (!savedMatch.halfDurationMinutes) {
@@ -134,16 +167,60 @@ export default function SoccerTrackerApp() {
     };
   }, []);
 
-  // Update match in state and persist to IndexedDB
-  const handleUpdateClock = useCallback(async (updatedClock: ClockState) => {
-    if (!match) return;
-    const updatedMatch: Match = {
-      ...match,
-      clock: updatedClock,
-    };
-    setMatch(updatedMatch);
-    await saveMatch(updatedMatch);
-  }, [match]);
+  // Update match in state and persist to IndexedDB, recording major match boundaries
+  const handleUpdateClock = useCallback(
+    async (
+      updatedClock: ClockState,
+      boundaryEvent?: { eventType: EventType; notes: string }
+    ) => {
+      if (!match) return;
+
+      const isFullTime = updatedClock.phase === 'FULL_TIME';
+      const formattedTime = formatEventMatchTime(updatedClock, match.halfDurationMinutes || 30);
+      const isoNow = new Date().toISOString();
+
+      const updatedMatch: Match = {
+        ...match,
+        clock: updatedClock,
+        ...(isFullTime
+          ? {
+              completedAt: isoNow,
+              finalMatchTime: formattedTime,
+            }
+          : {}),
+      };
+
+      setMatch(updatedMatch);
+      await saveMatch(updatedMatch);
+
+      // Record major match boundary event in IndexedDB and timeline
+      if (boundaryEvent) {
+        const eventId =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `event_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+        const newPhaseEvent: MatchEvent = {
+          id: eventId,
+          matchId: match.id,
+          teamId: 'neutral',
+          eventType: boundaryEvent.eventType,
+          matchTimeSeconds: updatedClock.elapsedSeconds,
+          matchTimeFormatted: formattedTime,
+          phase: updatedClock.phase,
+          realTimestamp: isoNow,
+          details: {
+            notes: boundaryEvent.notes,
+          },
+        };
+
+        await addEvent(newPhaseEvent);
+        setEvents((prev) => [...prev, newPhaseEvent]);
+        showToast(boundaryEvent.notes);
+      }
+    },
+    [match, showToast]
+  );
 
   const handleChangeHalfMinutes = useCallback(async (minutes: number) => {
     if (!match) return;
@@ -296,7 +373,7 @@ export default function SoccerTrackerApp() {
     await saveMatch(fresh);
     setMatch(fresh);
     setEvents([]);
-    showToast('New match session started!');
+    showToast(`New match started vs ${fresh.awayTeam.name}!`);
   }, [showToast]);
 
   // Handle Substitution submission

@@ -3,13 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Target,
-  Zap,
   AlertTriangle,
-  Flag,
   CircleDot,
   ArrowUpRight,
   ArrowLeftRight,
 } from 'lucide-react';
+import { CornerFlagIcon, OffsideFlagIcon, GoalKickIcon, SatelliteIcon } from './SoccerIcons';
 import { EventType, Match, MatchEvent, TeamId } from '../lib/types';
 import { calculateTeamStats } from '../lib/stats';
 import { playGoalSound, playTapSound, triggerHaptic } from '../lib/sound';
@@ -36,14 +35,17 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
   // Great Save temporary state (active for 4 seconds after Shot on Target)
   const [greatSaveHome, setGreatSaveHome] = useState(false);
   const [greatSaveAway, setGreatSaveAway] = useState(false);
-  const greatSaveTimers = useRef<{ home: NodeJS.Timeout | null; away: NodeJS.Timeout | null }>({
+  const [greatSaveCountdownHome, setGreatSaveCountdownHome] = useState(0);
+  const [greatSaveCountdownAway, setGreatSaveCountdownAway] = useState(0);
+  const greatSaveIntervals = useRef<{ home: NodeJS.Timeout | null; away: NodeJS.Timeout | null }>({
     home: null,
     away: null,
   });
 
-  // Foul sub-menu state ('No Card', 'Yellow', 'Red')
+  // Foul sub-menu state ('No Card', 'Yellow', 'Red') with 5-second auto-select countdown
   const [foulMenuTeam, setFoulMenuTeam] = useState<TeamId | null>(null);
-  const foulMenuTimer = useRef<NodeJS.Timeout | null>(null);
+  const [foulCountdown, setFoulCountdown] = useState<number>(5);
+  const foulCountdownInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Penalty sub-menu state ('Goal (PK)' or 'Missed')
   const [penaltyMenuTeam, setPenaltyMenuTeam] = useState<TeamId | null>(null);
@@ -51,11 +53,11 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
 
   // Clean up timers on unmount
   useEffect(() => {
-    const timers = greatSaveTimers.current;
+    const intervals = greatSaveIntervals.current;
     return () => {
-      if (timers.home) clearTimeout(timers.home);
-      if (timers.away) clearTimeout(timers.away);
-      if (foulMenuTimer.current) clearTimeout(foulMenuTimer.current);
+      if (intervals.home) clearInterval(intervals.home);
+      if (intervals.away) clearInterval(intervals.away);
+      if (foulCountdownInterval.current) clearInterval(foulCountdownInterval.current);
       if (penaltyMenuTimer.current) clearTimeout(penaltyMenuTimer.current);
     };
   }, []);
@@ -71,14 +73,47 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
     const defendingTeamId: TeamId = attackingTeamId === 'home' ? 'away' : 'home';
 
     if (attackingTeamId === 'home') {
-      if (greatSaveTimers.current.home) clearTimeout(greatSaveTimers.current.home);
+      if (greatSaveIntervals.current.home) clearInterval(greatSaveIntervals.current.home);
+      greatSaveIntervals.current.home = null;
       setGreatSaveHome(false);
+      setGreatSaveCountdownHome(0);
     } else {
-      if (greatSaveTimers.current.away) clearTimeout(greatSaveTimers.current.away);
+      if (greatSaveIntervals.current.away) clearInterval(greatSaveIntervals.current.away);
+      greatSaveIntervals.current.away = null;
       setGreatSaveAway(false);
+      setGreatSaveCountdownAway(0);
     }
 
     onTriggerEvent(defendingTeamId, 'GREAT_SAVE');
+  };
+
+  // Open Foul card prompt with 5-second countdown timer
+  const handleOpenFoulMenu = (teamId: TeamId) => {
+    triggerHaptic(20);
+    playTapSound();
+
+    if (foulCountdownInterval.current) {
+      clearInterval(foulCountdownInterval.current);
+      foulCountdownInterval.current = null;
+    }
+
+    setFoulMenuTeam(teamId);
+    setFoulCountdown(5);
+
+    let timeLeft = 5;
+    foulCountdownInterval.current = setInterval(() => {
+      timeLeft -= 1;
+      if (timeLeft <= 0) {
+        if (foulCountdownInterval.current) {
+          clearInterval(foulCountdownInterval.current);
+          foulCountdownInterval.current = null;
+        }
+        // Auto-select and log default card event (No Card / regular Foul)
+        handleSelectFoul(teamId, undefined);
+      } else {
+        setFoulCountdown(timeLeft);
+      }
+    }, 1000);
   };
 
   // Handle Foul card selection
@@ -86,8 +121,12 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
     triggerHaptic(25);
     playTapSound();
 
-    if (foulMenuTimer.current) clearTimeout(foulMenuTimer.current);
+    if (foulCountdownInterval.current) {
+      clearInterval(foulCountdownInterval.current);
+      foulCountdownInterval.current = null;
+    }
     setFoulMenuTeam(null);
+    setFoulCountdown(5);
 
     const details = card ? { card } : undefined;
 
@@ -127,20 +166,40 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
       return;
     }
 
-    // Shot on Target: activate "Great Save" button with glove for 4 seconds
+    // Shot on Target: activate "Great Save" button with countdown (4, 3, 2, 1, 0)
     if (type === 'SHOT_ON_TARGET') {
       if (teamId === 'home') {
-        if (greatSaveTimers.current.home) clearTimeout(greatSaveTimers.current.home);
+        if (greatSaveIntervals.current.home) clearInterval(greatSaveIntervals.current.home);
         setGreatSaveHome(true);
-        greatSaveTimers.current.home = setTimeout(() => {
-          setGreatSaveHome(false);
-        }, 4000);
+        setGreatSaveCountdownHome(4);
+        let timeLeft = 4;
+        greatSaveIntervals.current.home = setInterval(() => {
+          timeLeft -= 1;
+          if (timeLeft <= 0) {
+            if (greatSaveIntervals.current.home) clearInterval(greatSaveIntervals.current.home);
+            greatSaveIntervals.current.home = null;
+            setGreatSaveHome(false);
+            setGreatSaveCountdownHome(0);
+          } else {
+            setGreatSaveCountdownHome(timeLeft);
+          }
+        }, 1000);
       } else {
-        if (greatSaveTimers.current.away) clearTimeout(greatSaveTimers.current.away);
+        if (greatSaveIntervals.current.away) clearInterval(greatSaveIntervals.current.away);
         setGreatSaveAway(true);
-        greatSaveTimers.current.away = setTimeout(() => {
-          setGreatSaveAway(false);
-        }, 4000);
+        setGreatSaveCountdownAway(4);
+        let timeLeft = 4;
+        greatSaveIntervals.current.away = setInterval(() => {
+          timeLeft -= 1;
+          if (timeLeft <= 0) {
+            if (greatSaveIntervals.current.away) clearInterval(greatSaveIntervals.current.away);
+            greatSaveIntervals.current.away = null;
+            setGreatSaveAway(false);
+            setGreatSaveCountdownAway(0);
+          } else {
+            setGreatSaveCountdownAway(timeLeft);
+          }
+        }, 1000);
       }
     }
 
@@ -216,7 +275,7 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
               </div>
               <span className="btn-label great-save-label">Great Save?</span>
               <span className="btn-count-badge" style={{ background: '#0284c7', color: '#fff' }}>
-                4s
+                {isHome ? greatSaveCountdownHome : greatSaveCountdownAway}s
               </span>
             </button>
           ) : (
@@ -237,7 +296,7 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
             </button>
           )}
 
-          {/* 3. SHOT (Off Target) */}
+          {/* 3. SHOT (Off Target) — Satellite icon: "¡Se va! ¡Se va!" */}
           <button
             type="button"
             className={`action-btn ${sideClass}`}
@@ -246,7 +305,7 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
             aria-label={`Shot for ${team.name}`}
           >
             <div className="btn-icon">
-              <Zap size={22} color="#94a3b8" />
+              <SatelliteIcon size={22} color="#94a3b8" />
             </div>
             <span className="btn-label">Shot (Off Target)</span>
             <span className="btn-count-badge" title="Shots off target">
@@ -254,16 +313,103 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
             </span>
           </button>
 
-          {/* 4. FOUL: Morphs into 3 buttons (No card, Yellow, Red) when pressed */}
+          {/* 4. CORNER KICK */}
+          <button
+            type="button"
+            className={`action-btn ${sideClass}`}
+            onClick={() => handleAction(teamId, 'CORNER_KICK')}
+            title={`Record Corner Kick for ${team.name}`}
+            aria-label={`Corner kick for ${team.name}`}
+          >
+            <div className="btn-icon">
+              <CornerFlagIcon size={22} color={isHome ? '#06b6d4' : '#f43f5e'} />
+            </div>
+            <span className="btn-label">Corner Kick</span>
+            <span className="btn-count-badge" title="Corner kicks">
+              {stats.corners}
+            </span>
+          </button>
+
+          {/* 5. GOAL KICK */}
+          <button
+            type="button"
+            className={`action-btn ${sideClass}`}
+            onClick={() => handleAction(teamId, 'GOAL_KICK')}
+            title={`Record Goal Kick for ${team.name}`}
+            aria-label={`Goal kick for ${team.name}`}
+          >
+            <div className="btn-icon">
+              <GoalKickIcon size={22} color={isHome ? '#06b6d4' : '#f43f5e'} />
+            </div>
+            <span className="btn-label">Goal Kick</span>
+            <span className="btn-count-badge" title="Goal kicks">
+              {stats.goalKicks}
+            </span>
+          </button>
+
+          {/* 6. THROW-IN */}
+          <button
+            type="button"
+            className={`action-btn throw-in ${sideClass}`}
+            onClick={() => handleAction(teamId, 'THROW_IN')}
+            title={`Record Throw-in for ${team.name}`}
+            aria-label={`Throw-in for ${team.name}`}
+          >
+            <div className="btn-icon">
+              <ArrowUpRight size={22} color="#94a3b8" />
+            </div>
+            <span className="btn-label">Throw-in</span>
+            <span className="btn-count-badge" title="Throw-ins taken">
+              {stats.throwIns}
+            </span>
+          </button>
+
+          {/* 7. SUBSTITUTION */}
+          <button
+            type="button"
+            className={`action-btn ${sideClass}`}
+            onClick={() => handleAction(teamId, 'SUBSTITUTION')}
+            title={`Record Substitution for ${team.name}`}
+            aria-label={`Substitution for ${team.name}`}
+          >
+            <div className="btn-icon">
+              <ArrowLeftRight size={22} color="#a855f7" />
+            </div>
+            <span className="btn-label">Substitution</span>
+            <span className="btn-count-badge" title="Substitutions made">
+              {stats.substitutions}
+            </span>
+          </button>
+
+
+          {/* 8. OFFSIDE */}
+          <button
+            type="button"
+            className={`action-btn ${sideClass}`}
+            onClick={() => handleAction(teamId, 'OFFSIDE')}
+            title={`Record Offside for ${team.name}`}
+            aria-label={`Offside for ${team.name}`}
+          >
+            <div className="btn-icon">
+              <OffsideFlagIcon size={22} />
+            </div>
+            <span className="btn-label">Offside</span>
+            <span className="btn-count-badge" title="Offsides">
+              {stats.offsides}
+            </span>
+          </button>
+
+          {/* 9. FOUL: Sits right underneath Substitution. Expands into horizontal row of 3 vertical boxes */}
           {isFoulMenuOpen ? (
             <div className="foul-split-container">
               <button
                 type="button"
                 className="foul-sub-btn no-card"
                 onClick={() => handleSelectFoul(teamId, undefined)}
-                title="Foul without card"
+                title={`No Card (Auto-selects in ${foulCountdown}s)`}
               >
-                <span>No Card</span>
+                <span className="foul-box-title">No Card</span>
+                <span className="foul-countdown-badge">{foulCountdown}s</span>
               </button>
               <button
                 type="button"
@@ -271,7 +417,8 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
                 onClick={() => handleSelectFoul(teamId, 'yellow')}
                 title="Yellow Card"
               >
-                <span>🟨 Yellow</span>
+                <span className="card-swatch yellow" aria-hidden="true" />
+                <span className="foul-box-title">Yellow</span>
               </button>
               <button
                 type="button"
@@ -279,22 +426,15 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
                 onClick={() => handleSelectFoul(teamId, 'red')}
                 title="Red Card"
               >
-                <span>🟥 Red</span>
+                <span className="card-swatch red" aria-hidden="true" />
+                <span className="foul-box-title">Red</span>
               </button>
             </div>
           ) : (
             <button
               type="button"
               className={`action-btn ${sideClass}`}
-              onClick={() => {
-                triggerHaptic(20);
-                playTapSound();
-                if (foulMenuTimer.current) clearTimeout(foulMenuTimer.current);
-                setFoulMenuTeam(teamId);
-                foulMenuTimer.current = setTimeout(() => {
-                  setFoulMenuTeam(null);
-                }, 5000);
-              }}
+              onClick={() => handleOpenFoulMenu(teamId)}
               title={`Record Foul for ${team.name}`}
               aria-label={`Foul for ${team.name}`}
             >
@@ -308,24 +448,7 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
             </button>
           )}
 
-          {/* 5. CORNER KICK */}
-          <button
-            type="button"
-            className={`action-btn ${sideClass}`}
-            onClick={() => handleAction(teamId, 'CORNER_KICK')}
-            title={`Record Corner Kick for ${team.name}`}
-            aria-label={`Corner kick for ${team.name}`}
-          >
-            <div className="btn-icon">
-              <Flag size={22} color={isHome ? '#06b6d4' : '#f43f5e'} />
-            </div>
-            <span className="btn-label">Corner Kick</span>
-            <span className="btn-count-badge" title="Corner kicks">
-              {stats.corners}
-            </span>
-          </button>
-
-          {/* 6. PENALTY → submenu: Goal (PK) or Missed */}
+          {/* 10. PENALTY: All the way to the bottom, placed right underneath Offside */}
           {isPenaltyMenuOpen ? (
             <div className="penalty-split-container">
               <button
@@ -370,57 +493,6 @@ export const SplitActionBoard: React.FC<SplitActionBoardProps> = ({
               </span>
             </button>
           )}
-
-          {/* 7. THROW-IN */}
-          <button
-            type="button"
-            className={`action-btn ${sideClass}`}
-            onClick={() => handleAction(teamId, 'THROW_IN')}
-            title={`Record Throw-in for ${team.name}`}
-            aria-label={`Throw-in for ${team.name}`}
-          >
-            <div className="btn-icon">
-              <ArrowUpRight size={22} color="#94a3b8" />
-            </div>
-            <span className="btn-label">Throw-in</span>
-            <span className="btn-count-badge" title="Throw-ins taken">
-              {stats.throwIns}
-            </span>
-          </button>
-
-          {/* 8. SUBSTITUTION */}
-          <button
-            type="button"
-            className={`action-btn ${sideClass}`}
-            onClick={() => handleAction(teamId, 'SUBSTITUTION')}
-            title={`Record Substitution for ${team.name}`}
-            aria-label={`Substitution for ${team.name}`}
-          >
-            <div className="btn-icon">
-              <ArrowLeftRight size={22} color="#a855f7" />
-            </div>
-            <span className="btn-label">Substitution</span>
-            <span className="btn-count-badge" title="Substitutions made">
-              {stats.substitutions}
-            </span>
-          </button>
-
-          {/* 9. OFFSIDE */}
-          <button
-            type="button"
-            className={`action-btn ${sideClass}`}
-            onClick={() => handleAction(teamId, 'OFFSIDE')}
-            title={`Record Offside for ${team.name}`}
-            aria-label={`Offside for ${team.name}`}
-          >
-            <div className="btn-icon">
-              <span style={{ fontSize: '20px', lineHeight: 1 }} role="img" aria-label="Offside flag">🚩</span>
-            </div>
-            <span className="btn-label">Offside</span>
-            <span className="btn-count-badge" title="Offsides">
-              {stats.offsides}
-            </span>
-          </button>
         </div>
       </section>
     );

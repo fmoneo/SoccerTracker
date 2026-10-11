@@ -3,6 +3,7 @@
 import React from 'react';
 import { History, X, RotateCcw } from 'lucide-react';
 import { Match, MatchEvent } from '../lib/types';
+import { CornerFlagIcon, OffsideFlagIcon, GoalKickIcon } from './SoccerIcons';
 
 interface TimelineLogProps {
   match: Match;
@@ -18,11 +19,17 @@ const EVENT_LABELS: Record<string, string> = {
   SHOT: '🚀 Shot (Off Target)',
   GREAT_SAVE: '🧤 Great Save',
   FOUL: '⚠️ Foul',
-  CORNER_KICK: '🚩 Corner Kick',
+  CORNER_KICK: 'Corner Kick',
+  GOAL_KICK: 'Goal Kick',
   PENALTY: '🥅 Penalty',
-  OFFSIDE: '🚩 Offside',
+  OFFSIDE: 'Offside',
   THROW_IN: '🤾 Throw-in',
   SUBSTITUTION: '🔄 Sub',
+  START_1ST_HALF: '⏱️ Start 1st Half',
+  END_1ST_HALF: '⏸️ End 1st Half',
+  START_2ND_HALF: '⏱️ Start 2nd Half (Restart)',
+  FULL_TIME: '🏁 End of the Game',
+  XAVI_HIGHLIGHT: '⭐ Xavi Highlight #11',
 };
 
 export const TimelineLog: React.FC<TimelineLogProps> = ({
@@ -65,24 +72,56 @@ export const TimelineLog: React.FC<TimelineLogProps> = ({
           </div>
         ) : (
           reversed.map((event) => {
+            const isNeutral = event.teamId === 'neutral';
             const isHome = event.teamId === 'home';
-            const teamName = isHome ? match.homeTeam.name : match.awayTeam.name;
-            let label = EVENT_LABELS[event.eventType] || event.eventType;
-            if (event.eventType === 'GOAL' && event.details?.pk) label = '⚽ Goal (PK)';
-            if (event.eventType === 'FOUL') {
-              if (event.details?.card === 'yellow') label = '🟨 Yellow Card';
-              else if (event.details?.card === 'red') label = '🟥 Red Card';
+            const teamName = isNeutral
+              ? 'Match Phase'
+              : isHome
+              ? match.homeTeam.name
+              : match.awayTeam.name;
+
+            let labelNode: React.ReactNode = EVENT_LABELS[event.eventType] || event.eventType;
+            if (event.eventType === 'CORNER_KICK') {
+              labelNode = (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <CornerFlagIcon size={14} color={isHome ? '#38bdf8' : '#fb7185'} />
+                  <span>Corner Kick</span>
+                </span>
+              );
+            } else if (event.eventType === 'GOAL_KICK') {
+              labelNode = (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <GoalKickIcon size={14} color={isHome ? '#38bdf8' : '#fb7185'} />
+                  <span>Goal Kick</span>
+                </span>
+              );
+            } else if (event.eventType === 'OFFSIDE') {
+              labelNode = (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <OffsideFlagIcon size={14} />
+                  <span>Offside</span>
+                </span>
+              );
+            } else if (event.eventType === 'GOAL' && event.details?.pk) {
+              labelNode = '⚽ Goal (PK)';
+            } else if (event.eventType === 'FOUL') {
+              if (event.details?.card === 'yellow') labelNode = '🟨 Yellow Card';
+              else if (event.details?.card === 'red') labelNode = '🟥 Red Card';
+            } else if (event.eventType === 'PENALTY' && event.details?.missed) {
+              labelNode = '❌ Missed Penalty';
             }
-            if (event.eventType === 'PENALTY' && event.details?.missed) label = '❌ Missed Penalty';
-            const playerTag = event.details?.player ? ` ${event.details.player}` : '';
-            const subDetail = event.details?.subIn && event.details?.subOut
-              ? ` (${event.details.subIn} in, ${event.details.subOut} out)`
-              : '';
+
+            const subDetail =
+              event.details?.subIn && event.details?.subOut
+                ? ` (${event.details.subIn} in, ${event.details.subOut} out)`
+                : '';
+
+            const chipClass = isNeutral ? 'phase-boundary' : isHome ? 'home' : 'away';
 
             return (
               <div
                 key={event.id}
-                className={`timeline-chip ${isHome ? 'home' : 'away'}`}
+                className={`timeline-chip ${chipClass}`}
                 title={`Logged at real-time ${event.realTimestamp}`}
               >
                 <span className="timeline-chip-time">{event.matchTimeFormatted}</span>
@@ -101,14 +140,16 @@ export const TimelineLog: React.FC<TimelineLogProps> = ({
                   </span>
                 )}
                 <span className="timeline-chip-event">
-                  {label} • {teamName}{subDetail}
+                  {labelNode}
+                  {!isNeutral && ` • ${teamName}`}
+                  {subDetail}
                 </span>
                 <button
                   type="button"
                   className="timeline-chip-delete"
                   onClick={() => onDeleteEvent(event.id)}
                   title="Remove this event"
-                  aria-label={`Remove event ${label} for ${teamName}`}
+                  aria-label={`Remove event ${event.eventType}`}
                 >
                   <X size={13} />
                 </button>

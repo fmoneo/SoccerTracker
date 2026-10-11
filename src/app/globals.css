@@ -896,62 +896,203 @@ button:active {
   50% { box-shadow: 0 0 24px rgba(56, 189, 248, 0.6); }
 }
 
-/* Foul card picker — 3-button horizontal strip replacing the Foul button */
+/* Foul card picker — horizontal row of 3 vertical boxes side-by-side */
 .foul-split-container {
   grid-column: span 1;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  gap: 5px;
   min-height: 72px;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .foul-sub-btn {
   flex: 1;
+  min-width: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   border-radius: var(--radius-sm);
-  border: 1.5px solid transparent;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  padding: 4px 6px;
+  padding: 6px 3px;
   cursor: pointer;
   transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+
+.foul-sub-btn .foul-box-title {
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.foul-sub-btn .foul-countdown-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.22);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+}
+
+.foul-sub-btn .card-swatch {
+  width: 13px;
+  height: 18px;
+  border-radius: 2px;
+  display: inline-block;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.foul-sub-btn .card-swatch.yellow {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  border: 1px solid #d97706;
+}
+
+.foul-sub-btn .card-swatch.red {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  border: 1px solid #dc2626;
 }
 
 .foul-sub-btn.no-card {
-  background: rgba(100, 116, 139, 0.2);
-  border-color: rgba(100, 116, 139, 0.4);
-  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  color: #7dd3fc;
 }
 
 .foul-sub-btn.no-card:hover {
-  background: rgba(100, 116, 139, 0.35);
-  border-color: #64748b;
+  background: rgba(30, 41, 59, 0.95);
+  border-color: #38bdf8;
+  color: #e0f2fe;
 }
 
 .foul-sub-btn.yellow-card {
   background: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.45);
+  border: 1.5px solid rgba(245, 158, 11, 0.65);
   color: #fbbf24;
 }
 
 .foul-sub-btn.yellow-card:hover {
   background: rgba(245, 158, 11, 0.3);
   border-color: #f59e0b;
+  color: #fef08a;
 }
 
 .foul-sub-btn.red-card {
   background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.45);
+  border: 1.5px solid rgba(239, 68, 68, 0.65);
   color: #f87171;
 }
 
 .foul-sub-btn.red-card:hover {
   background: rgba(239, 68, 68, 0.3);
   border-color: #ef4444;
+  color: #fecaca;
+}
+
+.action-btn.throw-in {
+  grid-column: span 2;
+}
+
+/* XAVI #11 Jersey Highlight Button */
+.action-btn.xavi-btn {
+  grid-column: span 2;
+  min-height: 68px;
+  background: linear-gradient(160deg, #0891b2 0%, #06b6d4 40%, #0e7490 100%);
+  border: 2px solid rgba(6, 182, 212, 0.7);
+  box-shadow:
+    0 4px 20px rgba(6, 182, 212, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  align-items: stretch;
+}
+
+.action-btn.xavi-btn::before {
+  /* Jersey texture: subtle horizontal stripe pattern */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 7px,
+    rgba(255, 255, 255, 0.04) 7px,
+    rgba(255, 255, 255, 0.04) 8px
+  );
+  pointer-events: none;
+}
+
+.action-btn.xavi-btn::after {
+  /* Jersey collar arc at the top */
+  content: '';
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 42px;
+  height: 28px;
+  border-radius: 0 0 50% 50%;
+  background: rgba(5, 145, 172, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-top: none;
+  pointer-events: none;
+}
+
+.action-btn.xavi-btn:hover {
+  background: linear-gradient(160deg, #0ea5e9 0%, #22d3ee 40%, #0891b2 100%);
+  border-color: #38bdf8;
+  box-shadow:
+    0 6px 28px rgba(6, 182, 212, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.action-btn.xavi-btn:active {
+  transform: scale(0.97);
+}
+
+.xavi-jersey-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 10px 8px;
+  gap: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.xavi-name {
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: #fff;
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    0 0 12px rgba(255, 255, 255, 0.2);
+  line-height: 1;
+  font-family: var(--font-sans);
+}
+
+.xavi-number {
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 0 16px rgba(255, 255, 255, 0.25);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 /* Penalty outcome picker — 2-button strip (Goal PK / Missed) */
@@ -1075,6 +1216,21 @@ button:active {
 
 .timeline-chip.away {
   border-left: 3px solid var(--away-primary);
+}
+
+.timeline-chip.phase-boundary {
+  border-left: 3px solid #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.timeline-chip.phase-boundary .timeline-chip-time {
+  color: #38bdf8;
+}
+
+.timeline-chip.phase-boundary .timeline-chip-event {
+  color: #f1f5f9;
+  font-weight: 700;
 }
 
 .timeline-chip-time {
@@ -1606,7 +1762,8 @@ dialog::backdrop {
     border-radius: var(--radius-sm);
   }
 
-  .action-btn.goal {
+  .action-btn.goal,
+  .action-btn.throw-in {
     grid-column: span 1;
     min-height: 58px;
   }

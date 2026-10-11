@@ -11,6 +11,7 @@ export function calculateTeamStats(events: MatchEvent[], teamId: TeamId): TeamSt
   let yellowCards = 0;
   let redCards = 0;
   let corners = 0;
+  let goalKicks = 0;
   let penalties = 0;
   let pkGoals = 0;
   let offsides = 0;
@@ -42,6 +43,9 @@ export function calculateTeamStats(events: MatchEvent[], teamId: TeamId): TeamSt
       case 'CORNER_KICK':
         corners += 1;
         break;
+      case 'GOAL_KICK':
+        goalKicks += 1;
+        break;
       case 'PENALTY':
         penalties += 1;
         break;
@@ -66,6 +70,7 @@ export function calculateTeamStats(events: MatchEvent[], teamId: TeamId): TeamSt
     yellowCards,
     redCards,
     corners,
+    goalKicks,
     penalties,
     pkGoals,
     offsides,
@@ -85,8 +90,9 @@ export function buildExportPayload(match: Match, events: MatchEvent[]): MatchExp
     match: {
       id: match.id,
       createdAt: match.createdAt,
+      completedAt: match.completedAt,
       phase: match.clock.phase,
-      finalMatchTime: formatEventMatchTime(match.clock),
+      finalMatchTime: match.finalMatchTime || formatEventMatchTime(match.clock),
       teams: {
         home: {
           name: match.homeTeam.name,
@@ -106,7 +112,12 @@ export function buildExportPayload(match: Match, events: MatchEvent[]): MatchExp
     },
     events: events.map((e) => ({
       ...e,
-      teamName: e.teamId === 'home' ? match.homeTeam.name : match.awayTeam.name,
+      teamName:
+        e.teamId === 'home'
+          ? match.homeTeam.name
+          : e.teamId === 'away'
+          ? match.awayTeam.name
+          : 'Match Phase',
     })),
   };
 }

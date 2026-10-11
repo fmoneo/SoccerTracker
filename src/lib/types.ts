@@ -1,4 +1,4 @@
-export type TeamId = 'home' | 'away';
+export type TeamId = 'home' | 'away' | 'neutral';
 
 export type EventType =
   | 'GOAL'
@@ -7,10 +7,16 @@ export type EventType =
   | 'GREAT_SAVE'
   | 'FOUL'
   | 'CORNER_KICK'
+  | 'GOAL_KICK'
   | 'PENALTY'
   | 'OFFSIDE'
   | 'THROW_IN'
-  | 'SUBSTITUTION';
+  | 'SUBSTITUTION'
+  | 'START_1ST_HALF'
+  | 'END_1ST_HALF'
+  | 'START_2ND_HALF'
+  | 'FULL_TIME'
+  | 'XAVI_HIGHLIGHT';
 
 export type MatchPhase =
   | 'NOT_STARTED'
@@ -30,7 +36,7 @@ export interface ClockState {
 }
 
 export interface TeamInfo {
-  id: TeamId;
+  id: 'home' | 'away';
   name: string;
   shortName: string;
   color: string;
@@ -61,6 +67,8 @@ export interface Match {
   id: string;
   createdAt: string;
   updatedAt: string;
+  completedAt?: string;       // Recorded when End of the Game (Full Time) is triggered
+  finalMatchTime?: string;    // Formatted match time at final whistle
   homeTeam: TeamInfo;
   awayTeam: TeamInfo;
   clock: ClockState;
@@ -77,6 +85,7 @@ export interface TeamStats {
   yellowCards: number;
   redCards: number;
   corners: number;
+  goalKicks: number;
   penalties: number;     // missed penalties
   pkGoals: number;       // goals scored from PK
   offsides: number;
@@ -91,6 +100,7 @@ export interface MatchExportPayload {
   match: {
     id: string;
     createdAt: string;
+    completedAt?: string;
     phase: MatchPhase;
     finalMatchTime: string;
     teams: {

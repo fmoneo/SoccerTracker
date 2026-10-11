@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PITCHPULSE | Client-Side Soccer Match Tracker",
+  title: "Soccer Tracker",
   description: "Touch-friendly soccer match tracker with zero server database, instant IndexedDB persistence, running match clock, and native Web Share export.",
 };
 

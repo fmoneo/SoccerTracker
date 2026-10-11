@@ -38,8 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
           <Activity size={20} />
         </div>
         <div className="brand-text-col">
-          <h1 className="brand-title">PITCHPULSE</h1>
-          <span className="brand-subtitle">Match Tracker</span>
+          <h1 className="brand-title">Soccer Tracker</h1>
         </div>
 
         <div className="sync-status" title="Every button press automatically persists to IndexedDB">

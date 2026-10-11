@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Match, MatchEvent } from '../lib/types';
+import { Match, MatchEvent, EventType } from '../lib/types';
 import { MatchClock } from './MatchClock';
 import { calculateTeamStats } from '../lib/stats';
 import { IntensityGraph } from './IntensityGraph';
 import { ArrowLeftRight, UserCheck, Activity } from 'lucide-react';
+import { playTapSound, triggerHaptic } from '../lib/sound';
 
 interface ScoreboardProps {
   match: Match;
@@ -15,8 +16,12 @@ interface ScoreboardProps {
   onToggleSides: () => void;
   onToggleTagPlayer: () => void;
   onUpdateTeamName: (side: 'home' | 'away', name: string) => void;
-  onUpdateClock: (clock: Match['clock']) => void;
+  onUpdateClock: (
+    clock: Match['clock'],
+    boundaryEvent?: { eventType: EventType; notes: string }
+  ) => void;
   onChangeHalfMinutes?: (minutes: number) => void;
+  onXaviHighlight?: () => void;
 }
 
 export const Scoreboard: React.FC<ScoreboardProps> = ({
@@ -29,6 +34,7 @@ export const Scoreboard: React.FC<ScoreboardProps> = ({
   onUpdateTeamName,
   onUpdateClock,
   onChangeHalfMinutes,
+  onXaviHighlight,
 }) => {
   const [showFlowGraph, setShowFlowGraph] = useState(false);
 
@@ -143,6 +149,28 @@ export const Scoreboard: React.FC<ScoreboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Xavi #11 Jersey Highlight Button — positioned under the Home team side */}
+      {onXaviHighlight && (
+        <div className="xavi-scoreboard-row">
+          <button
+            type="button"
+            className="action-btn xavi-btn xavi-btn-compact"
+            onClick={() => {
+              triggerHaptic(20);
+              playTapSound();
+              onXaviHighlight();
+            }}
+            title="Log a Xavi highlight moment!"
+            aria-label="Xavi highlight"
+          >
+            <div className="xavi-jersey-inner" aria-hidden="true">
+              <span className="xavi-name">XAVI</span>
+              <span className="xavi-number">11</span>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Match Clock & Phase Controls */}
       <div className="scoreboard-clock-row">

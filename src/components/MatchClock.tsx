@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Play, Pause, FastForward, Flag } from 'lucide-react';
-import { ClockState, MatchPhase } from '../lib/types';
+import { ClockState, MatchPhase, EventType } from '../lib/types';
 import {
   getClockDisplay,
   calculateCurrentElapsedSeconds,
@@ -15,7 +15,10 @@ import { playWhistleSound, triggerHaptic } from '../lib/sound';
 interface MatchClockProps {
   clock: ClockState;
   halfMinutes?: number;
-  onUpdateClock: (updatedClock: ClockState) => void;
+  onUpdateClock: (
+    updatedClock: ClockState,
+    boundaryEvent?: { eventType: EventType; notes: string }
+  ) => void;
   onChangeHalfMinutes?: (halfMinutes: number) => void;
 }
 
@@ -56,19 +59,25 @@ export const MatchClock: React.FC<MatchClockProps> = ({
     playWhistleSound(false);
 
     if (clock.phase === 'NOT_STARTED') {
-      onUpdateClock({
-        phase: 'FIRST_HALF',
-        elapsedSeconds: 0,
-        isRunning: true,
-        lastStartedRealTime: Date.now(),
-      });
+      onUpdateClock(
+        {
+          phase: 'FIRST_HALF',
+          elapsedSeconds: 0,
+          isRunning: true,
+          lastStartedRealTime: Date.now(),
+        },
+        { eventType: 'START_1ST_HALF', notes: 'Start 1st Half' }
+      );
     } else if (clock.phase === 'HALF_TIME') {
-      onUpdateClock({
-        phase: 'SECOND_HALF',
-        elapsedSeconds: getRegulationHalfSeconds(halfMinutes),
-        isRunning: true,
-        lastStartedRealTime: Date.now(),
-      });
+      onUpdateClock(
+        {
+          phase: 'SECOND_HALF',
+          elapsedSeconds: getRegulationHalfSeconds(halfMinutes),
+          isRunning: true,
+          lastStartedRealTime: Date.now(),
+        },
+        { eventType: 'START_2ND_HALF', notes: 'Half-time Restart (Start 2nd Half)' }
+      );
     } else {
       // Resume current half
       onUpdateClock({
@@ -98,27 +107,33 @@ export const MatchClock: React.FC<MatchClockProps> = ({
     const currentElapsed = calculateCurrentElapsedSeconds(clock);
     const finalHalfElapsed = Math.max(getRegulationHalfSeconds(halfMinutes), currentElapsed);
 
-    onUpdateClock({
-      phase: 'HALF_TIME',
-      isRunning: false,
-      elapsedSeconds: finalHalfElapsed,
-      lastStartedRealTime: null,
-    });
+    onUpdateClock(
+      {
+        phase: 'HALF_TIME',
+        isRunning: false,
+        elapsedSeconds: finalHalfElapsed,
+        lastStartedRealTime: null,
+      },
+      { eventType: 'END_1ST_HALF', notes: 'End 1st Half' }
+    );
   };
 
-  // Handle Full Time (End Match)
+  // Handle Full Time (End of the Game)
   const handleFullTime = () => {
     triggerHaptic([40, 60, 40, 60, 40]);
     playWhistleSound(true);
     const currentElapsed = calculateCurrentElapsedSeconds(clock);
     const finalElapsed = Math.max(getRegulationFullSeconds(halfMinutes), currentElapsed);
 
-    onUpdateClock({
-      phase: 'FULL_TIME',
-      isRunning: false,
-      elapsedSeconds: finalElapsed,
-      lastStartedRealTime: null,
-    });
+    onUpdateClock(
+      {
+        phase: 'FULL_TIME',
+        isRunning: false,
+        elapsedSeconds: finalElapsed,
+        lastStartedRealTime: null,
+      },
+      { eventType: 'FULL_TIME', notes: 'End of the Game' }
+    );
   };
 
   return (
